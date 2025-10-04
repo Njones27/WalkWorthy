@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		2F5228152E90FBA9009E93FA /* WalkWorthy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WalkWorthy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F5AB6162E90FD8F00333B8C /* WalkWorthy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WalkWorthy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		2F5228172E90FBA9009E93FA /* WalkWorthy */ = {
+		2F5AB6182E90FD8F00333B8C /* WalkWorthy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WalkWorthy;
 			sourceTree = "<group>";
@@ -19,7 +19,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		2F5228122E90FBA9009E93FA /* Frameworks */ = {
+		2F5AB6132E90FD8F00333B8C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -29,18 +29,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2F52280C2E90FBA9009E93FA = {
+		2F5AB60D2E90FD8F00333B8C = {
 			isa = PBXGroup;
 			children = (
-				2F5228172E90FBA9009E93FA /* WalkWorthy */,
-				2F5228162E90FBA9009E93FA /* Products */,
+				2F5AB6182E90FD8F00333B8C /* WalkWorthy */,
+				2F5AB6172E90FD8F00333B8C /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		2F5228162E90FBA9009E93FA /* Products */ = {
+		2F5AB6172E90FD8F00333B8C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2F5228152E90FBA9009E93FA /* WalkWorthy.app */,
+				2F5AB6162E90FD8F00333B8C /* WalkWorthy.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,64 +48,64 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		2F5228142E90FBA9009E93FA /* WalkWorthy */ = {
+		2F5AB6152E90FD8F00333B8C /* WalkWorthy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2F5228202E90FBAA009E93FA /* Build configuration list for PBXNativeTarget "WalkWorthy" */;
+			buildConfigurationList = 2F5AB6212E90FD9000333B8C /* Build configuration list for PBXNativeTarget "WalkWorthy" */;
 			buildPhases = (
-				2F5228112E90FBA9009E93FA /* Sources */,
-				2F5228122E90FBA9009E93FA /* Frameworks */,
-				2F5228132E90FBA9009E93FA /* Resources */,
+				2F5AB6122E90FD8F00333B8C /* Sources */,
+				2F5AB6132E90FD8F00333B8C /* Frameworks */,
+				2F5AB6142E90FD8F00333B8C /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				2F5228172E90FBA9009E93FA /* WalkWorthy */,
+				2F5AB6182E90FD8F00333B8C /* WalkWorthy */,
 			);
 			name = WalkWorthy;
 			packageProductDependencies = (
 			);
 			productName = WalkWorthy;
-			productReference = 2F5228152E90FBA9009E93FA /* WalkWorthy.app */;
+			productReference = 2F5AB6162E90FD8F00333B8C /* WalkWorthy.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		2F52280D2E90FBA9009E93FA /* Project object */ = {
+		2F5AB60E2E90FD8F00333B8C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
-					2F5228142E90FBA9009E93FA = {
+					2F5AB6152E90FD8F00333B8C = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
-			buildConfigurationList = 2F5228102E90FBA9009E93FA /* Build configuration list for PBXProject "WalkWorthy" */;
+			buildConfigurationList = 2F5AB6112E90FD8F00333B8C /* Build configuration list for PBXProject "WalkWorthy" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 2F52280C2E90FBA9009E93FA;
+			mainGroup = 2F5AB60D2E90FD8F00333B8C;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 2F5228162E90FBA9009E93FA /* Products */;
+			productRefGroup = 2F5AB6172E90FD8F00333B8C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				2F5228142E90FBA9009E93FA /* WalkWorthy */,
+				2F5AB6152E90FD8F00333B8C /* WalkWorthy */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		2F5228132E90FBA9009E93FA /* Resources */ = {
+		2F5AB6142E90FD8F00333B8C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -115,7 +115,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		2F5228112E90FBA9009E93FA /* Sources */ = {
+		2F5AB6122E90FD8F00333B8C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -125,7 +125,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		2F52281E2E90FBAA009E93FA /* Debug */ = {
+		2F5AB61F2E90FD9000333B8C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -189,7 +189,7 @@
 			};
 			name = Debug;
 		};
-		2F52281F2E90FBAA009E93FA /* Release */ = {
+		2F5AB6202E90FD9000333B8C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -246,7 +246,7 @@
 			};
 			name = Release;
 		};
-		2F5228212E90FBAA009E93FA /* Debug */ = {
+		2F5AB6222E90FD9000333B8C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -278,7 +278,7 @@
 			};
 			name = Debug;
 		};
-		2F5228222E90FBAA009E93FA /* Release */ = {
+		2F5AB6232E90FD9000333B8C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -313,25 +313,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		2F5228102E90FBA9009E93FA /* Build configuration list for PBXProject "WalkWorthy" */ = {
+		2F5AB6112E90FD8F00333B8C /* Build configuration list for PBXProject "WalkWorthy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				2F52281E2E90FBAA009E93FA /* Debug */,
-				2F52281F2E90FBAA009E93FA /* Release */,
+				2F5AB61F2E90FD9000333B8C /* Debug */,
+				2F5AB6202E90FD9000333B8C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2F5228202E90FBAA009E93FA /* Build configuration list for PBXNativeTarget "WalkWorthy" */ = {
+		2F5AB6212E90FD9000333B8C /* Build configuration list for PBXNativeTarget "WalkWorthy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				2F5228212E90FBAA009E93FA /* Debug */,
-				2F5228222E90FBAA009E93FA /* Release */,
+				2F5AB6222E90FD9000333B8C /* Debug */,
+				2F5AB6232E90FD9000333B8C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 2F52280D2E90FBA9009E93FA /* Project object */;
+	rootObject = 2F5AB60E2E90FD8F00333B8C /* Project object */;
 }
