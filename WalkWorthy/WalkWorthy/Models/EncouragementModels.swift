@@ -161,8 +161,6 @@ struct EncouragementCard: Identifiable, Equatable {
 enum Gender: String, CaseIterable, Identifiable {
     case female = "Female"
     case male = "Male"
-    case nonBinary = "Non-binary"
-    case preferNotToSay = "Prefer not to say"
 
     var id: String { rawValue }
 }

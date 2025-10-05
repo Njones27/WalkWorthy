@@ -75,7 +75,7 @@ final class AppState: ObservableObject {
     func loadProfile() -> OnboardingProfile {
         let age = defaults.value(forKey: StorageKey.profileAge) as? Int
         let major = defaults.string(forKey: StorageKey.profileMajor) ?? ""
-        let gender = Gender(rawValue: defaults.string(forKey: StorageKey.profileGender) ?? "") ?? .preferNotToSay
+        let gender = Gender(rawValue: defaults.string(forKey: StorageKey.profileGender) ?? "") ?? .male
         let hobbies = Set(defaults.stringArray(forKey: StorageKey.profileHobbies) ?? [])
         let optIn = defaults.object(forKey: StorageKey.profileOptIn) as? Bool ?? true
         return OnboardingProfile(age: age, major: major, gender: gender, hobbies: hobbies, optIn: optIn)

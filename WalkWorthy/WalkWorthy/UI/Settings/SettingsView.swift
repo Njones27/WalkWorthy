@@ -15,6 +15,12 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Personalization") {
+                    NavigationLink {
+                        OnboardingForm()
+                    } label: {
+                        Label("Edit personal details", systemImage: "person.crop.circle")
+                    }
+
                     Toggle(isOn: Binding(
                         get: { appState.useProfilePersonalization },
                         set: { appState.setUseProfilePersonalization($0) }
