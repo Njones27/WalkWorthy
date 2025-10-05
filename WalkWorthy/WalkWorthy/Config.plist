@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_MODE</key>
+	<string>mock</string>
+	<key>USE_FAKE_CANVAS</key>
+	<true/>
+	<key>NOTIFICATION_MODE</key>
+	<string>local</string>
+	<key>DEFAULT_TRANSLATION</key>
+	<string>ESV</string>
+</dict>
+</plist>
