@@ -37,7 +37,13 @@ final class AppState: ObservableObject {
 
         let config = Config.shared
 
-        onboardingCompleted = defaults.bool(forKey: StorageKey.onboardingCompleted)
+        let storedOnboardingCompleted = defaults.bool(forKey: StorageKey.onboardingCompleted)
+        if storedOnboardingCompleted && !Self.hasStoredProfile(in: defaults) {
+            defaults.set(false, forKey: StorageKey.onboardingCompleted)
+            onboardingCompleted = false
+        } else {
+            onboardingCompleted = storedOnboardingCompleted
+        }
         useProfilePersonalization = defaults.object(forKey: StorageKey.useProfilePersonalization) as? Bool ?? true
         useFakeCanvas = defaults.object(forKey: StorageKey.useFakeCanvas) as? Bool ?? config.useFakeCanvas
         isCanvasLinked = defaults.object(forKey: StorageKey.canvasLinked) as? Bool ?? false
@@ -189,6 +195,17 @@ final class AppState: ObservableObject {
             return
         }
         currentVerseIndex = currentVerseIndex.clamped(to: 0..<(verseDeck.count))
+    }
+}
+
+private extension AppState {
+    static func hasStoredProfile(in defaults: UserDefaults) -> Bool {
+        if defaults.object(forKey: StorageKey.profileAge) != nil { return true }
+        if defaults.object(forKey: StorageKey.profileMajor) != nil { return true }
+        if defaults.object(forKey: StorageKey.profileGender) != nil { return true }
+        if defaults.object(forKey: StorageKey.profileHobbies) != nil { return true }
+        if defaults.object(forKey: StorageKey.profileOptIn) != nil { return true }
+        return false
     }
 }
 
