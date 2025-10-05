@@ -11,7 +11,7 @@ struct OnboardingForm: View {
     @EnvironmentObject private var appState: AppState
     @State private var ageText: String = ""
     @State private var major: String = ""
-    @State private var gender: Gender = .preferNotToSay
+    @State private var gender: Gender = .male
     @State private var selectedHobbies: Set<String> = []
     @State private var optIn: Bool = true
     @FocusState private var focusedField: Field?
