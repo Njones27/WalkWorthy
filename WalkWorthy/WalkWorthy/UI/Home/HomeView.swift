@@ -13,9 +13,9 @@ struct HomeView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 28) {
-                VerseCard(verse: appState.currentVerse, selectedTranslation: appState.selectedTranslation)
+                translationMenu
 
-                translationPicker
+                VerseCard(verse: appState.currentVerse, selectedTranslation: appState.selectedTranslation)
 
                 controlButtons
 
@@ -35,22 +35,50 @@ struct HomeView: View {
         }
     }
 
-    private var translationPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Preferred translation")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Picker("Translation", selection: $appState.selectedTranslation) {
+    private var translationMenu: some View {
+        HStack {
+            Menu {
                 ForEach(Translation.allCases) { translation in
-                    Text(translation.displayName).tag(translation)
+                    Button {
+                        appState.setTranslation(translation)
+                    } label: {
+                        if translation == appState.selectedTranslation {
+                            Label(translation.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(translation.displayName)
+                        }
+                    }
                 }
+            } label: {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Translation")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        Text(appState.selectedTranslation.displayName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                    }
+
+                    Image(systemName: "chevron.down")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 16)
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
             }
-            .pickerStyle(.wheel)
-            .frame(height: 120)
-            .glassCard()
-            .onChange(of: appState.selectedTranslation) { _, newValue in
-                appState.setTranslation(newValue)
-            }
+
+            Spacer()
         }
     }
 
