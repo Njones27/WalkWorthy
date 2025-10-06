@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OnboardingForm: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
     @State private var ageText: String = ""
     @State private var major: String = ""
     @State private var gender: Gender = .male
@@ -18,6 +19,7 @@ struct OnboardingForm: View {
     @State private var ageError: String?
     @State private var majorError: String?
     @State private var hobbiesError: String?
+    @State private var isEditingExistingProfile = false
     @FocusState private var focusedField: Field?
 
     enum Field {
@@ -26,35 +28,45 @@ struct OnboardingForm: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    ageSection
-                    majorSection
-                    genderSection
-                    hobbiesSection
-                    optInSection
-                    privacyCopy
-                    primaryButton
+        Group {
+            if appState.onboardingCompleted {
+                formContent
+            } else {
+                NavigationStack {
+                    formContent
                 }
-                .padding(.vertical, 32)
-                .padding(.horizontal, 24)
             }
-            .background(gradient)
-            .onAppear(perform: loadProfile)
-            .onChange(of: ageText) { _ in
-                if ageError != nil { ageError = nil }
-            }
-            .onChange(of: major) { _ in
-                if majorError != nil { majorError = nil }
-            }
-            .onChange(of: selectedHobbies) { _ in
-                if hobbiesError != nil { hobbiesError = nil }
-            }
-            .navigationTitle("Let's personalize")
-            .toolbarTitleDisplayMode(.inline)
         }
+    }
+
+    private var formContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                ageSection
+                majorSection
+                genderSection
+                hobbiesSection
+                optInSection
+                privacyCopy
+                primaryButton
+            }
+            .padding(.vertical, 32)
+            .padding(.horizontal, 24)
+        }
+        .background(gradient)
+        .onAppear(perform: loadProfile)
+        .onChange(of: ageText) { _ in
+            if ageError != nil { ageError = nil }
+        }
+        .onChange(of: major) { _ in
+            if majorError != nil { majorError = nil }
+        }
+        .onChange(of: selectedHobbies) { _ in
+            if hobbiesError != nil { hobbiesError = nil }
+        }
+        .navigationTitle("Let's personalize")
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private var header: some View {
@@ -210,6 +222,8 @@ struct OnboardingForm: View {
     }
 
     private func loadProfile() {
+        isEditingExistingProfile = appState.onboardingCompleted
+
         let profile = appState.loadProfile()
         if let age = profile.age {
             ageText = String(age)
@@ -274,6 +288,10 @@ struct OnboardingForm: View {
         appState.updateProfile(age: age, major: trimmedMajor, gender: gender, hobbies: selectedHobbies, optIn: optIn)
         appState.markOnboardingComplete()
         appState.refreshEncouragementDeck()
+
+        if isEditingExistingProfile {
+            dismiss()
+        }
     }
 
     private func validateProfile() -> Bool {
