@@ -42,6 +42,17 @@ struct EncouragementPopupsView: View {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 }
 
+                HStack(spacing: 8) {
+                    ForEach(Array(cards.indices), id: \.self) { idx in
+                        Circle()
+                            .fill(idx == index ? Color.primary : Color.secondary.opacity(0.3))
+                            .frame(width: idx == index ? 10 : 8, height: idx == index ? 10 : 8)
+                            .animation(.easeInOut(duration: 0.2), value: index)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Page \(index + 1) of \(cards.count)")
+
                 Button(action: onDismiss) {
                     Label("Done", systemImage: "checkmark.circle.fill")
                         .font(.headline)
