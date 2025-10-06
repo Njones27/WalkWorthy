@@ -13,6 +13,7 @@ struct OnboardingForm: View {
     @State private var major: String = ""
     @State private var gender: Gender = .male
     @State private var selectedHobbies: Set<String> = []
+    @State private var customHobby: String = ""
     @State private var optIn: Bool = true
     @FocusState private var focusedField: Field?
 
@@ -98,7 +99,7 @@ struct OnboardingForm: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hobbies")
                 .font(.headline)
-            Text("Select all that spark joy right now.")
+            Text("Pick a few that spark joy, or add your own.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 12) {
@@ -106,6 +107,27 @@ struct OnboardingForm: View {
                     TagChip(label: hobby.label, isSelected: selectedHobbies.contains(hobby.label)) {
                         toggleHobby(hobby.label)
                     }
+                }
+                ForEach(customHobbyChips, id: \.self) { hobby in
+                    TagChip(label: hobby, isSelected: selectedHobbies.contains(hobby)) {
+                        toggleHobby(hobby)
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Don’t see yours? Add it below.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    TextField("Add another hobby", text: $customHobby)
+                        .textInputAutocapitalization(.words)
+                        .disableAutocorrection(true)
+                        .padding()
+                        .glassCard()
+                        .onSubmit(addCustomHobby)
+                    Button("Add", action: addCustomHobby)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canAddCustomHobby)
                 }
             }
         }
@@ -168,6 +190,29 @@ struct OnboardingForm: View {
         } else {
             selectedHobbies.insert(label)
         }
+    }
+
+    private func addCustomHobby() {
+        let trimmed = customHobby.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard !selectedHobbies.contains(trimmed) else {
+            customHobby = ""
+            return
+        }
+        selectedHobbies.insert(trimmed)
+        customHobby = ""
+    }
+
+    private var customHobbyChips: [String] {
+        let suggested = Set(Hobby.allCases.map(\.label))
+        return selectedHobbies
+            .filter { !suggested.contains($0) }
+            .sorted()
+    }
+
+    private var canAddCustomHobby: Bool {
+        let trimmed = customHobby.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && !selectedHobbies.contains(trimmed)
     }
 
     private func saveProfile() {
