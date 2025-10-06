@@ -15,6 +15,9 @@ struct OnboardingForm: View {
     @State private var selectedHobbies: Set<String> = []
     @State private var customHobby: String = ""
     @State private var optIn: Bool = true
+    @State private var ageError: String?
+    @State private var majorError: String?
+    @State private var hobbiesError: String?
     @FocusState private var focusedField: Field?
 
     enum Field {
@@ -40,6 +43,15 @@ struct OnboardingForm: View {
             }
             .background(gradient)
             .onAppear(perform: loadProfile)
+            .onChange(of: ageText) { _ in
+                if ageError != nil { ageError = nil }
+            }
+            .onChange(of: major) { _ in
+                if majorError != nil { majorError = nil }
+            }
+            .onChange(of: selectedHobbies) { _ in
+                if hobbiesError != nil { hobbiesError = nil }
+            }
             .navigationTitle("Let's personalize")
             .toolbarTitleDisplayMode(.inline)
         }
@@ -66,6 +78,11 @@ struct OnboardingForm: View {
                 .glassCard()
                 .focused($focusedField, equals: .age)
                 .accessibilityLabel("Age")
+            if let ageError {
+                Text(ageError)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
@@ -79,6 +96,11 @@ struct OnboardingForm: View {
                 .glassCard()
                 .focused($focusedField, equals: .major)
                 .accessibilityLabel("Major")
+            if let majorError {
+                Text(majorError)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
@@ -95,6 +117,7 @@ struct OnboardingForm: View {
         }
     }
 
+    @ViewBuilder
     private var hobbiesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hobbies")
@@ -131,6 +154,11 @@ struct OnboardingForm: View {
                 }
             }
         }
+        if let hobbiesError {
+            Text(hobbiesError)
+                .font(.footnote)
+                .foregroundStyle(.red)
+        }
     }
 
     private var optInSection: some View {
@@ -155,17 +183,25 @@ struct OnboardingForm: View {
     }
 
     private var primaryButton: some View {
-        Button(action: saveProfile) {
-            Label("Save and continue", systemImage: "arrow.forward.circle.fill")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(LinearGradient(colors: [Color.accentColor.opacity(0.85), Color.accentColor], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .foregroundStyle(Color.white)
+        VStack(alignment: .leading, spacing: 12) {
+            if shouldShowIncompleteHint {
+                Text("Tell us a little about you to continue.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
+            Button(action: saveProfile) {
+                Label("Save and continue", systemImage: "arrow.forward.circle.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(LinearGradient(colors: [Color.accentColor.opacity(0.85), Color.accentColor], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .foregroundStyle(Color.white)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Saves your preferences locally and continues to the app.")
         }
-        .buttonStyle(.plain)
         .padding(.top, 16)
-        .accessibilityHint("Saves your preferences locally and continues to the app.")
     }
 
     private var gradient: some View {
@@ -177,11 +213,24 @@ struct OnboardingForm: View {
         let profile = appState.loadProfile()
         if let age = profile.age {
             ageText = String(age)
+        } else {
+            ageText = ""
         }
         major = profile.major
         gender = profile.gender
         selectedHobbies = profile.hobbies
         optIn = profile.optIn
+        resetValidationMessages()
+
+        if !appState.onboardingCompleted {
+            DispatchQueue.main.async {
+                if profile.age == nil {
+                    focusedField = .age
+                } else if profile.major.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    focusedField = .major
+                }
+            }
+        }
     }
 
     private func toggleHobby(_ label: String) {
@@ -216,10 +265,55 @@ struct OnboardingForm: View {
     }
 
     private func saveProfile() {
+        guard validateProfile() else { return }
+
         focusedField = nil
         let age = Int(ageText)
-        appState.updateProfile(age: age, major: major, gender: gender, hobbies: selectedHobbies, optIn: optIn)
+        let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
+        major = trimmedMajor
+        appState.updateProfile(age: age, major: trimmedMajor, gender: gender, hobbies: selectedHobbies, optIn: optIn)
         appState.markOnboardingComplete()
         appState.refreshEncouragementDeck()
+    }
+
+    private func validateProfile() -> Bool {
+        resetValidationMessages()
+
+        guard let age = Int(ageText), age > 0 else {
+            ageError = "Please enter your age."
+            focusedField = .age
+            return false
+        }
+
+        let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMajor.isEmpty else {
+            majorError = "Please share your major."
+            focusedField = .major
+            return false
+        }
+
+        guard !selectedHobbies.isEmpty else {
+            hobbiesError = "Pick at least one hobby."
+            return false
+        }
+
+        return true
+    }
+
+    private func resetValidationMessages() {
+        ageError = nil
+        majorError = nil
+        hobbiesError = nil
+    }
+
+    private var shouldShowIncompleteHint: Bool {
+        !appState.onboardingCompleted && !formIsComplete
+    }
+
+    private var formIsComplete: Bool {
+        guard let age = Int(ageText), age > 0 else { return false }
+        let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMajor.isEmpty else { return false }
+        return !selectedHobbies.isEmpty
     }
 }
