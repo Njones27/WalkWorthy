@@ -56,13 +56,13 @@ struct OnboardingForm: View {
         }
         .background(gradient)
         .onAppear(perform: loadProfile)
-        .onChange(of: ageText) { _ in
+        .onChange(of: ageText) {
             if ageError != nil { ageError = nil }
         }
-        .onChange(of: major) { _ in
+        .onChange(of: major) {
             if majorError != nil { majorError = nil }
         }
-        .onChange(of: selectedHobbies) { _ in
+        .onChange(of: selectedHobbies) {
             if hobbiesError != nil { hobbiesError = nil }
         }
         .navigationTitle("Let's personalize")
