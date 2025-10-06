@@ -14,6 +14,8 @@ struct EncouragementPopupsView: View {
 
     @State private var index: Int = 0
 
+    private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -39,7 +41,8 @@ struct EncouragementPopupsView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .frame(height: 340)
                 .onChange(of: index) { _, _ in
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    impactGenerator.impactOccurred()
+                    impactGenerator.prepare()
                 }
 
                 Button(action: onDismiss) {
@@ -64,6 +67,9 @@ struct EncouragementPopupsView: View {
             }
             .navigationTitle("Burst of encouragement")
             .toolbarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            impactGenerator.prepare()
         }
     }
 }
