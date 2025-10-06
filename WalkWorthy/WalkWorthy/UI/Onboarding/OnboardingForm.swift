@@ -117,6 +117,7 @@ struct OnboardingForm: View {
         }
     }
 
+    @ViewBuilder
     private var hobbiesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hobbies")
