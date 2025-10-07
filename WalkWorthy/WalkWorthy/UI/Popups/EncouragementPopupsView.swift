@@ -57,6 +57,7 @@ struct EncouragementPopupsView: View {
                 .padding(.horizontal, 24)
             }
             .padding(.vertical, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color(.systemBackground).opacity(0.95))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
