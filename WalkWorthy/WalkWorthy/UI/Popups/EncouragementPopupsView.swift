@@ -45,12 +45,21 @@ struct EncouragementPopupsView: View {
                     impactGenerator.prepare()
                 }
 
+                Spacer(minLength: 0)
+
                 Button(action: onDismiss) {
                     Label("Done", systemImage: "checkmark.circle.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(LinearGradient(colors: [Color.accentColor.opacity(0.85), Color.accentColor], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(
+                            LinearGradient(
+                                colors: [Color.accentColor.opacity(0.85), Color.accentColor],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        )
                         .foregroundStyle(Color.white)
                 }
                 .buttonStyle(.plain)
