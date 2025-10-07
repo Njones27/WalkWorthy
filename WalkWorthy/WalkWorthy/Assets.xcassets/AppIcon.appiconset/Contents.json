@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "WalkWorthy_40x40.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
@@ -117,6 +118,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "DarkWalkWorthy_40x40.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
