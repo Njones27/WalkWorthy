@@ -1,4 +1,26 @@
+# macOS
+.DS_Store
+
+# Env files (keep template tracked)
+.env
+.env.*
+!.env.example
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.swp
+
+# Xcode / SwiftPM
+DerivedData/
+**/xcuserdata/
 *.xcuserstate
-/WalkWorthy/WalkWorthy.xcodeproj/project.xcworkspace/xcuserdata/nathanjones.xcuserdatad
-WalkWorthy/WalkWorthy.xcodeproj/project.xcworkspace/xcuserdata/nathanjones.xcuserdatad/UserInterfaceState.xcuserstate
-*.md
+.swiftpm/
+.build/
+
+# GitHub Actions/CI local artifacts (none currently)
+
+# CDK local env/script
+infrastructure/cdk-env.sh
+
+/prompts/
