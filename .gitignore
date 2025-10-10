@@ -17,8 +17,7 @@ DerivedData/
 *.xcuserstate
 .swiftpm/
 .build/
-
-# GitHub Actions/CI local artifacts (none currently)
+.npm/
 
 # CDK local env/script
 infrastructure/cdk-env.sh
