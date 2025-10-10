@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -20,45 +20,49 @@ export class InfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const userPoolId = new cdk.CfnParameter(this, 'CognitoUserPoolId', {
-      type: 'String',
-      description: 'User pool ID that issues JWTs for the WalkWorthy mobile app.',
-    });
-
-    const userPoolClientId = new cdk.CfnParameter(
-      this,
-      'CognitoUserPoolClientId',
-      {
+    const enableJwtAuth = this.node.tryGetContext('enableJwtAuth') === 'true';
+    let jwtAuthorizer: apigwAuthorizers.HttpJwtAuthorizer | undefined;
+    if (enableJwtAuth) {
+      const userPoolId = new cdk.CfnParameter(this, 'CognitoUserPoolId', {
         type: 'String',
         description:
-          'App client ID whose tokens authorize access to protected routes.',
-      },
+          'User pool ID that issues JWTs for the WalkWorthy mobile app.',
+      });
+
+      const userPoolClientId = new cdk.CfnParameter(
+        this,
+        'CognitoUserPoolClientId',
+        {
+          type: 'String',
+          description:
+            'App client ID whose tokens authorize access to protected routes.',
+        },
+      );
+
+      jwtAuthorizer = new apigwAuthorizers.HttpJwtAuthorizer(
+        'WalkWorthyJwtAuthorizer',
+        cdk.Fn.join('', [
+          'https://cognito-idp.',
+          this.region,
+          '.amazonaws.com/',
+          userPoolId.valueAsString,
+        ]),
+        {
+          jwtAudience: [userPoolClientId.valueAsString],
+        },
+      );
+    }
+
+    const table = dynamodb.TableV2.fromTableName(
+      this,
+      'WalkWorthyTable',
+      'walkworthy',
     );
 
-    const table = new dynamodb.TableV2(this, 'WalkWorthyTable', {
-      tableName: 'walkworthy',
-      removalPolicy: RemovalPolicy.RETAIN,
-      partitionKey: {
-        name: 'pk',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'sk',
-        type: dynamodb.AttributeType.STRING,
-      },
-      billing: dynamodb.Billing.onDemand(),
-      pointInTimeRecovery: true,
-      tableClass: dynamodb.TableClass.STANDARD,
-      timeToLiveAttribute: 'expiresAt',
-    });
-
-    const canvasSecret = new secretsmanager.Secret(
+    const canvasSecret = secretsmanager.Secret.fromSecretNameV2(
       this,
       'CanvasClientSecret',
-      {
-        secretName: 'walkworthy/canvas/client',
-        description: 'Canvas OAuth client secret used by the WalkWorthy backend.',
-      },
+      'walkworthy/canvas/client',
     );
 
     const schedulerDlq = new sqs.Queue(this, 'ScanSchedulerDlq', {
@@ -76,7 +80,6 @@ export class InfrastructureStack extends cdk.Stack {
       timeout: Duration.seconds(10),
       bundling: {
         target: 'node20',
-        externalModules: ['aws-sdk'],
         minify: true,
       },
       environment: {
@@ -185,14 +188,6 @@ export class InfrastructureStack extends cdk.Stack {
         allowHeaders: ['Authorization', 'Content-Type'],
       },
     });
-
-    const jwtAuthorizer = new apigwAuthorizers.HttpJwtAuthorizer(
-      'WalkWorthyJwtAuthorizer',
-      `https://cognito-idp.${this.region}.amazonaws.com/${userPoolId.valueAsString}`,
-      {
-        jwtAudience: [userPoolClientId.valueAsString],
-      },
-    );
 
     httpApi.addRoutes({
       path: '/auth/canvas/callback',
