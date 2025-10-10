@@ -165,18 +165,6 @@ export class InfrastructureStack extends cdk.Stack {
     canvasCallbackFn.addToRolePolicy(canvasTokensStatement);
     scanUserFn.addToRolePolicy(canvasTokensStatement);
 
-    scanUserFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: 'BedrockInvokeModel',
-        effect: iam.Effect.ALLOW,
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          `arn:aws:bedrock:${this.region}::foundation-model/*`,
-          `arn:aws:bedrock:${this.region}:${this.account}:model/*`,
-        ],
-      }),
-    );
-
     const httpApi = new apigwv2.HttpApi(this, 'WalkWorthyHttpApi', {
       apiName: 'walkworthy-api',
       corsPreflight: {
