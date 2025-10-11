@@ -65,6 +65,26 @@ export class InfrastructureStack extends cdk.Stack {
       'walkworthy/canvas/client',
     );
 
+    // Secret for OpenAI API key used by AgentKit (string secret)
+    const openAiSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'OpenAIApiKeySecret',
+      'walkworthy/openai/api-key',
+    );
+
+    const bibleMcpBridgeFn = new NodejsFunction(this, 'BibleMcpBridgeFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'handler',
+      entry: path.join(__dirname, '../src/handlers/bible-mcp-bridge.ts'),
+      memorySize: 256,
+      timeout: Duration.seconds(5),
+      bundling: {
+        target: 'node20',
+        minify: true,
+      },
+    });
+
     const schedulerDlq = new sqs.Queue(this, 'ScanSchedulerDlq', {
       queueName: 'walkworthy-scan-scheduler-dlq',
       retentionPeriod: Duration.days(14),
@@ -85,6 +105,15 @@ export class InfrastructureStack extends cdk.Stack {
       environment: {
         TABLE_NAME: table.tableName,
         CANVAS_CLIENT_SECRET_NAME: canvasSecret.secretName,
+        // Bible MCP
+        BIBLE_MCP_MODE: this.node.tryGetContext('BIBLE_MCP_MODE') ?? process.env.BIBLE_MCP_MODE ?? 'lambda',
+        BIBLE_MCP_URL: this.node.tryGetContext('BIBLE_MCP_URL') ?? process.env.BIBLE_MCP_URL ?? '',
+        BIBLE_MCP_DEFAULT_TRANSLATION: this.node.tryGetContext('BIBLE_MCP_DEFAULT_TRANSLATION') ?? process.env.BIBLE_MCP_DEFAULT_TRANSLATION ?? 'ESV',
+        BIBLE_MCP_LAMBDA_ARN: bibleMcpBridgeFn.functionArn,
+        // AgentKit
+        OPENAI_MODEL: this.node.tryGetContext('OPENAI_MODEL') ?? process.env.OPENAI_MODEL ?? 'gpt-4.1',
+        OPENAI_WORKFLOW_ID: this.node.tryGetContext('OPENAI_WORKFLOW_ID') ?? process.env.OPENAI_WORKFLOW_ID ?? '',
+        OPENAI_API_KEY_SECRET_NAME: openAiSecret.secretName,
       },
     };
 
@@ -145,6 +174,15 @@ export class InfrastructureStack extends cdk.Stack {
 
     canvasSecret.grantRead(canvasCallbackFn);
     canvasSecret.grantRead(scanUserFn);
+
+    // Allow scanUser to read OpenAI API key from Secrets Manager
+    openAiSecret.grantRead(scanUserFn);
+
+    bibleMcpBridgeFn.grantInvoke(scanUserFn);
+
+    // If using a secret for OpenAI API key instead of env var, grant here.
+    // Example: const openAiSecret = secretsmanager.Secret.fromSecretNameV2(this, 'OpenAIKey', 'walkworthy/openai/api-key');
+    // openAiSecret.grantRead(scanUserFn);
 
     const canvasTokensStatement = new iam.PolicyStatement({
       sid: 'CanvasTokenManagement',

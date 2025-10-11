@@ -12,6 +12,7 @@ interface UserProfileRequest {
   gender?: string;
   hobbies?: string[];
   optInTailored?: boolean;
+  translationPreference?: 'ESV' | 'KJV' | 'NIV' | 'NKJV' | 'NASB' | 'CSB' | 'NLT';
 }
 
 export async function handler(event: APIGatewayProxyEventV2) {
@@ -41,6 +42,7 @@ export async function handler(event: APIGatewayProxyEventV2) {
           gender: body.gender,
           hobbies: body.hobbies,
           optInTailored: Boolean(body.optInTailored),
+          translationPreference: body.translationPreference ?? 'ESV',
           updatedAt: nowIso(),
         },
       }),
