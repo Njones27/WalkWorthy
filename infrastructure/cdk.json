@@ -97,6 +97,6 @@
     "@aws-cdk/aws-ec2:requirePrivateSubnetsForEgressOnlyInternetGateway": true,
     "@aws-cdk/aws-s3:publicAccessBlockedByDefault": true,
     "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true,
-    "enableJwtAuth": "true"
+    "enableJwtAuth": "false"
   }
 }
