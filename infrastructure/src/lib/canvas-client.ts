@@ -97,7 +97,12 @@ export async function fetchPlannerItems(options: FetchPlannerOptions): Promise<C
 }
 
 async function ensureAccessToken(options: FetchPlannerOptions): Promise<CanvasContext> {
-  const token = await getSecretJson<CanvasTokenSecret>(options.refreshSecretArn);
+  const rawToken = await getSecretJson<CanvasTokenSecret>(options.refreshSecretArn);
+  const { value: token, changed } = normalizeTokenSecret(rawToken);
+
+  if (changed) {
+    await putSecretJson(options.refreshSecretArn, token);
+  }
   const now = new Date();
   const obtainedAt = new Date(token.obtainedAt);
   const expiresAt = new Date(obtainedAt.getTime() + token.expiresInSeconds * 1000);
@@ -115,7 +120,12 @@ async function ensureAccessToken(options: FetchPlannerOptions): Promise<CanvasCo
 
 async function refreshAccessToken(options: FetchPlannerOptions): Promise<CanvasTokenSecret | undefined> {
   const { clientId, clientSecret } = await getSecretJson<CanvasClientSecret>(options.clientSecretName);
-  const tokenSecret = await getSecretJson<CanvasTokenSecret>(options.refreshSecretArn);
+  const rawTokenSecret = await getSecretJson<CanvasTokenSecret>(options.refreshSecretArn);
+  const { value: tokenSecret, changed: tokenSecretChanged } = normalizeTokenSecret(rawTokenSecret);
+
+  if (tokenSecretChanged) {
+    await putSecretJson(options.refreshSecretArn, tokenSecret);
+  }
 
   const endpoint = new URL('/login/oauth2/token', options.baseUrl);
   const res = await fetch(endpoint.toString(), {
@@ -142,14 +152,16 @@ async function refreshAccessToken(options: FetchPlannerOptions): Promise<CanvasT
   };
 
   const updated: CanvasTokenSecret = {
-    refreshToken: json.refresh_token ?? tokenSecret.refreshToken,
-    accessToken: json.access_token,
+    refreshToken: (json.refresh_token ?? tokenSecret.refreshToken).trim(),
+    accessToken: (json.access_token ?? '').trim(),
     obtainedAt: new Date().toISOString(),
     expiresInSeconds: json.expires_in ?? tokenSecret.expiresInSeconds ?? 3600,
   };
 
-  await putSecretJson(options.refreshSecretArn, updated);
-  return updated;
+  const { value: normalizedUpdated } = normalizeTokenSecret(updated);
+
+  await putSecretJson(options.refreshSecretArn, normalizedUpdated);
+  return normalizedUpdated;
 }
 
 function parseNextLink(header: string | null): string | undefined {
@@ -160,4 +172,28 @@ function parseNextLink(header: string | null): string | undefined {
     if (match) return match[1];
   }
   return undefined;
+}
+
+function normalizeTokenSecret(secret: CanvasTokenSecret): {
+  value: CanvasTokenSecret;
+  changed: boolean;
+} {
+  const trimmedAccessToken = (secret.accessToken ?? '').trim();
+  const trimmedRefreshToken = (secret.refreshToken ?? '').trim();
+  const changed =
+    trimmedAccessToken !== secret.accessToken ||
+    trimmedRefreshToken !== secret.refreshToken;
+
+  if (!changed) {
+    return { value: secret, changed: false };
+  }
+
+  return {
+    value: {
+      ...secret,
+      accessToken: trimmedAccessToken,
+      refreshToken: trimmedRefreshToken,
+    },
+    changed: true,
+  };
 }

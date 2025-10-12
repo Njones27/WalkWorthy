@@ -112,8 +112,11 @@ export class InfrastructureStack extends cdk.Stack {
         BIBLE_MCP_LAMBDA_ARN: bibleMcpBridgeFn.functionArn,
         // AgentKit
         OPENAI_MODEL: this.node.tryGetContext('OPENAI_MODEL') ?? process.env.OPENAI_MODEL ?? 'gpt-4.1',
-        OPENAI_WORKFLOW_ID: this.node.tryGetContext('OPENAI_WORKFLOW_ID') ?? process.env.OPENAI_WORKFLOW_ID ?? '',
         OPENAI_API_KEY_SECRET_NAME: openAiSecret.secretName,
+        SCAN_EXCLUDED_VERSES:
+          this.node.tryGetContext('SCAN_EXCLUDED_VERSES') ??
+          process.env.SCAN_EXCLUDED_VERSES ??
+          '["Philippians 4:6-7"]',
       },
     };
 

@@ -72,10 +72,13 @@ export async function handler(event: APIGatewayProxyEventV2) {
       return json(502, { message: 'Canvas token response missing refresh token' });
     }
 
+    const sanitizedRefreshToken = token.refresh_token.trim();
+    const sanitizedAccessToken = (token.access_token ?? '').trim();
+
     const userSecretName = `${USER_SECRET_PREFIX}${state.userSub}`;
     const secretArn = await upsertSecretJson(userSecretName, {
-      refreshToken: token.refresh_token,
-      accessToken: token.access_token,
+      refreshToken: sanitizedRefreshToken,
+      accessToken: sanitizedAccessToken,
       obtainedAt: nowIso(),
       expiresInSeconds: token.expires_in ?? 3600,
     });
