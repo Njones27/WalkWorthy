@@ -12,7 +12,7 @@ import {
 import { futureEpochSeconds, nowIso } from '../shared/time';
 import { getUserProfileOnce } from '../shared/profile';
 import { bibleMcpFromEnv } from '../lib/bibleMcp';
-import { pickVerseWithAgentKit } from '../lib/agentkit';
+import { runVerseSelectionAgent } from '../lib/walkworthy-agent';
 import { fetchPlannerItems } from '../lib/canvas-client';
 import type { CanvasPlannerItem } from '../lib/canvas-client';
 import { mapPlannerToStressfulItems, buildVerseCandidates } from '../lib/stress-heuristics';
@@ -205,6 +205,84 @@ interface CanvasLinkRecord {
   refreshSecretArn: string;
 }
 
+const BASE_FALLBACK_OPTIONS = [
+  {
+    ref: 'Philippians 4:6-7',
+    text:
+      'Do not be anxious about anything, but in everything by prayer and supplication with thanksgiving let your requests be made known to God.',
+    encouragement:
+      'God invites you to bring today’s stress to Him—take a pause, breathe, and ask for His peace.',
+  },
+  {
+    ref: 'Isaiah 41:10',
+    text:
+      'Fear not, for I am with you; be not dismayed, for I am your God; I will strengthen you, I will help you, I will uphold you with my righteous right hand.',
+    encouragement:
+      'You are not facing today alone—lean on God’s strength and let Him hold you steady.',
+  },
+  {
+    ref: 'Psalm 55:22',
+    text:
+      'Cast your burden on the Lord, and he will sustain you; he will never permit the righteous to be moved.',
+    encouragement:
+      'Lay every burden down in prayer and trust that God will carry what feels too heavy.',
+  },
+  {
+    ref: 'Matthew 11:28-29',
+    text:
+      'Come to me, all who labor and are heavy laden, and I will give you rest. Take my yoke upon you, and learn from me, for I am gentle and lowly in heart, and you will find rest for your souls.',
+    encouragement:
+      'When your schedule feels relentless, rest in Jesus—He is gentle and ready to refresh your soul.',
+  },
+  {
+    ref: '2 Timothy 1:7',
+    text:
+      'For God gave us a spirit not of fear but of power and love and self-control.',
+    encouragement:
+      'Step into today with courage—God equips you with a spirit of power, love, and a clear mind.',
+  },
+];
+
+const DEFAULT_EXCLUDED_REFS = ['Philippians 4:6-7'];
+
+function normalizeReference(ref: string | undefined): string {
+  return (ref ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function parseExcludedRefs(): Set<string> {
+  const raw = process.env.SCAN_EXCLUDED_VERSES;
+  let values: string[] = DEFAULT_EXCLUDED_REFS;
+
+  if (raw && raw.length > 0) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        values = parsed.filter((entry): entry is string => typeof entry === 'string');
+      } else if (typeof parsed === 'string') {
+        values = [parsed];
+      }
+    } catch {
+      values = raw.split(',').map((part) => part.trim()).filter(Boolean);
+    }
+  }
+
+  const normalized = values
+    .map((entry) => normalizeReference(entry))
+    .filter((entry) => entry.length > 0);
+
+  return new Set(normalized);
+}
+
+function excludeVerses<T extends { ref: string }>(items: T[], excluded: Set<string>): T[] {
+  if (excluded.size === 0) {
+    return items;
+  }
+
+  return items.filter((item) => !excluded.has(normalizeReference(item.ref)));
+}
+
+const EXCLUDED_REFS = parseExcludedRefs();
+
 async function executeScanPipeline(params: {
   sub: string;
   canvasLink: CanvasLinkRecord;
@@ -235,6 +313,8 @@ async function executeScanPipeline(params: {
 
     verseCandidates = await buildVerseCandidates(mcp, stressfulItems, translation);
 
+    verseCandidates = excludeVerses(verseCandidates, EXCLUDED_REFS);
+
     const uniqueTags = Array.from(
       new Set(
         stressfulItems.flatMap((item) => item.stressTags ?? []).map((tag) => tag.toLowerCase()),
@@ -252,7 +332,7 @@ async function executeScanPipeline(params: {
       });
     }
 
-    const agentResult = await pickVerseWithAgentKit({
+    const agentResult = await runVerseSelectionAgent({
       profile,
       stressfulItems,
       verseCandidates,
@@ -297,6 +377,13 @@ async function executeScanPipeline(params: {
   }
 }
 
+function pickFallbackEncouragement(translation: Translation) {
+  const options = excludeVerses(BASE_FALLBACK_OPTIONS, EXCLUDED_REFS);
+  const pool = options.length > 0 ? options : BASE_FALLBACK_OPTIONS;
+  const choice = pool[Math.floor(Math.random() * pool.length)];
+  return finalizeEncouragement(choice.ref, choice.text, choice.encouragement, translation);
+}
+
 function buildFallbackResult(args: {
   translation: Translation;
   plannerCount: number;
@@ -305,12 +392,7 @@ function buildFallbackResult(args: {
   tags: string[];
   reason?: string;
 }): { encouragement: ReturnType<typeof finalizeEncouragement>; log: ScanLog } {
-  const encouragement = finalizeEncouragement(
-    'Philippians 4:6-7',
-    'Do not be anxious about anything, but in everything by prayer and supplication with thanksgiving let your requests be made known to God.',
-    'God invites you to bring today’s stress to Him—take a pause, breathe, and ask for His peace.',
-    args.translation,
-  );
+  const encouragement = pickFallbackEncouragement(args.translation);
 
   return {
     encouragement,

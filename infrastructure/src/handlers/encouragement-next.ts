@@ -34,6 +34,10 @@ export async function handler(event: APIGatewayProxyEventV2) {
       }
     }
 
+    if (pending.delivered === true) {
+      return json(200, { shouldNotify: false });
+    }
+
     await markDelivered(sub, pending.sk as string);
 
     return json(200, {
@@ -68,11 +72,24 @@ async function loadLatestPending(sub: string) {
         ':prefix': 'PENDING#',
       },
       ScanIndexForward: false,
-      Limit: 1,
     }),
   );
 
-  return response.Items?.[0];
+  const items = (response.Items ?? []) as Array<{
+    sk?: string;
+    delivered?: boolean;
+    createdAt?: string;
+  }>;
+
+  const undelivered = items
+    .filter((item) => item && item.delivered !== true)
+    .sort((a, b) => {
+      const aCreated = a.createdAt ?? '';
+      const bCreated = b.createdAt ?? '';
+      return bCreated.localeCompare(aCreated);
+    });
+
+  return undelivered[0] ?? null;
 }
 
 async function markDelivered(sub: string, sortKey: string) {
