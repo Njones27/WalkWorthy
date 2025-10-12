@@ -167,6 +167,9 @@ export class InfrastructureStack extends cdk.Stack {
       'EncouragementNextFunction',
       'encouragement-next.ts',
     );
+    const weekdayScanFn = createHandler('WeekdayScanFunction', 'weekday-scan.ts', {
+      timeout: Duration.seconds(60),
+    });
 
     table.grantReadWriteData(canvasCallbackFn);
     table.grantReadWriteData(scanUserFn);
@@ -174,14 +177,18 @@ export class InfrastructureStack extends cdk.Stack {
     table.grantReadWriteData(registerDeviceFn);
     table.grantReadWriteData(userProfileFn);
     table.grantReadWriteData(encouragementNextFn);
+    table.grantReadWriteData(weekdayScanFn);
 
     canvasSecret.grantRead(canvasCallbackFn);
     canvasSecret.grantRead(scanUserFn);
+    canvasSecret.grantRead(weekdayScanFn);
 
     // Allow scanUser to read OpenAI API key from Secrets Manager
     openAiSecret.grantRead(scanUserFn);
+    openAiSecret.grantRead(weekdayScanFn);
 
     bibleMcpBridgeFn.grantInvoke(scanUserFn);
+    bibleMcpBridgeFn.grantInvoke(weekdayScanFn);
 
     // If using a secret for OpenAI API key instead of env var, grant here.
     // Example: const openAiSecret = secretsmanager.Secret.fromSecretNameV2(this, 'OpenAIKey', 'walkworthy/openai/api-key');
@@ -205,6 +212,7 @@ export class InfrastructureStack extends cdk.Stack {
 
     canvasCallbackFn.addToRolePolicy(canvasTokensStatement);
     scanUserFn.addToRolePolicy(canvasTokensStatement);
+    weekdayScanFn.addToRolePolicy(canvasTokensStatement);
 
     const httpApi = new apigwv2.HttpApi(this, 'WalkWorthyHttpApi', {
       apiName: 'walkworthy-api',
@@ -284,20 +292,21 @@ export class InfrastructureStack extends cdk.Stack {
     });
 
     scanUserFn.grantInvoke(schedulerRole);
+    weekdayScanFn.grantInvoke(schedulerRole);
     schedulerDlq.grantSendMessages(schedulerRole);
 
     new scheduler.CfnSchedule(this, 'WeekdayScanSchedule', {
       name: 'walkworthy-weekday-scan',
       description:
-        'Weekday 9am America/Chicago scan to refresh Canvas data and prepare encouragements.',
+        'Weekday 9am America/New_York scan to refresh Canvas data and prepare encouragements.',
       flexibleTimeWindow: {
         mode: 'FLEXIBLE',
         maximumWindowInMinutes: 10,
       },
       scheduleExpression: 'cron(0 9 ? * MON-FRI *)',
-      scheduleExpressionTimezone: 'America/Chicago',
+      scheduleExpressionTimezone: 'America/New_York',
       target: {
-        arn: scanUserFn.functionArn,
+        arn: weekdayScanFn.functionArn,
         roleArn: schedulerRole.roleArn,
         deadLetterConfig: {
           arn: schedulerDlq.queueArn,
