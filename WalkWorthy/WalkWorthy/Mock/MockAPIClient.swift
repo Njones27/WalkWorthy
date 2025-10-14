@@ -26,6 +26,19 @@ struct MockAPIClient: EncouragementAPI {
         try await load(named: "today_canvas", type: TodayCanvas.self)
     }
 
+    func triggerScanNow() async throws -> ScanNowResponse {
+        try await load(named: "scan_now", type: ScanNowResponse.self)
+    }
+
+    func updateUserProfile(_ payload: RemoteUserProfileRequest) async throws {
+        let defaults = UserDefaults.standard
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        if let data = try? encoder.encode(payload) {
+            defaults.set(data, forKey: "walkworthy.mock.profile.remote")
+        }
+    }
+
     private func load<T: Decodable>(named name: String, type: T.Type) async throws -> T {
         try await Task.sleep(nanoseconds: 150_000_000) // Simulate network latency
         guard let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "Mock") else {

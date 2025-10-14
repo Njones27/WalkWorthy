@@ -12,9 +12,13 @@ final class BackgroundTasksManager {
     static let shared = BackgroundTasksManager()
 
     private let identifier = "com.walkworthy.refresh"
-    private let apiClient: any EncouragementAPI
+    private var apiClient: any EncouragementAPI
 
-    init(apiClient: any EncouragementAPI = MockAPIClient()) {
+    private init(apiClient: any EncouragementAPI = MockAPIClient()) {
+        self.apiClient = apiClient
+    }
+
+    func configure(apiClient: any EncouragementAPI) {
         self.apiClient = apiClient
     }
 

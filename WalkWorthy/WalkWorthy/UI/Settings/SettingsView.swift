@@ -59,6 +59,17 @@ struct SettingsView: View {
                     }
                 }
 
+                if appState.isLiveMode {
+                    Section("Account") {
+                        Button(role: .destructive) {
+                            appState.signOut()
+                        } label: {
+                            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                        .disabled(!appState.isAuthenticated)
+                    }
+                }
+
                 Section("About") {
                     LabeledContent("API mode", value: config.apiMode)
                     LabeledContent("Notifications", value: config.notificationMode)

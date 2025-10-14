@@ -12,7 +12,10 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if appState.onboardingCompleted {
+            if appState.requiresAuthenticationGate {
+                TitleScreenView()
+                    .transition(.opacity)
+            } else if appState.onboardingCompleted {
                 MainTabView()
                     .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
             } else {
@@ -21,6 +24,7 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.onboardingCompleted)
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.requiresAuthenticationGate)
     }
 }
 
