@@ -11,11 +11,14 @@ import SwiftUI
 protocol EncouragementAPI {
     func fetchNext() async throws -> NextResponse
     func fetchTodayCanvas() async throws -> TodayCanvas
+    func triggerScanNow() async throws -> ScanNowResponse
+    func updateUserProfile(_ payload: RemoteUserProfileRequest) async throws
 }
 
 struct NextResponse: Codable {
     let shouldNotify: Bool
     let payload: EncouragementPayload?
+    let metadata: ScanLogSummary?
 }
 
 struct EncouragementPayload: Codable, Hashable {
@@ -25,6 +28,37 @@ struct EncouragementPayload: Codable, Hashable {
     let encouragement: String
     let translation: String?
     let expiresAt: String?
+}
+
+struct ScanLogSummary: Codable, Equatable {
+    let encouragementId: String?
+    let status: ScanStatus
+    let plannerCount: Int?
+    let stressfulCount: Int?
+    let candidateCount: Int?
+    let tags: [String]?
+    let errorMessage: String?
+}
+
+enum ScanStatus: String, Codable {
+    case success = "SUCCESS"
+    case fallback = "FALLBACK"
+}
+
+struct ScanNowResponse: Codable {
+    let message: String
+    let encouragementId: String?
+    let status: ScanStatus
+    let log: ScanLogSummary?
+}
+
+struct RemoteUserProfileRequest: Codable {
+    var ageRange: String?
+    var major: String?
+    var gender: String?
+    var hobbies: [String]?
+    var optInTailored: Bool?
+    var translationPreference: String?
 }
 
 struct TodayCanvas: Codable, Equatable {

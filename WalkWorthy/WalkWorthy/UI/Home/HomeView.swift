@@ -16,8 +16,20 @@ struct HomeView: View {
                 translationMenu
 
                 VerseCard(verse: appState.currentVerse, selectedTranslation: appState.selectedTranslation)
+                    .overlay(alignment: .bottomLeading) {
+                        if !appState.hasFreshEncouragement {
+                            Text(appState.encouragementStatusMessage ?? "You’re all caught up for now.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(12)
+                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .padding()
+                        }
+                    }
 
                 controlButtons
+
+                statusCard
 
                 CanvasLinkView()
             }
@@ -101,14 +113,91 @@ struct HomeView: View {
             }
 
             Button {
+                appState.triggerScanNow()
+            } label: {
+                Group {
+                    if appState.isScanning {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                            Text("Scanning…")
+                        }
+                    } else {
+                        Label("Scan Now", systemImage: "arrow.clockwise.circle")
+                    }
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(GlassAccentButtonStyle())
+            .disabled(appState.isScanning)
+
+            Button {
                 appState.presentPopups()
             } label: {
                 Label("Show Pop-ups", systemImage: "sparkles")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(GlassAccentButtonStyle())
+            .buttonStyle(GlassButtonStyle())
         }
+    }
+
+    private var statusCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let error = appState.latestScanError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Color.red)
+            } else if let summary = appState.latestScanSummary {
+                Label(summary.status == .success ? "Fresh encouragement" : "Fallback encouragement", systemImage: summary.status == .success ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(summary.status == .success ? Color.green : Color.orange)
+
+                HStack(spacing: 12) {
+                    metricView(title: "Planner", value: summary.plannerCount)
+                    metricView(title: "Stressful", value: summary.stressfulCount)
+                    metricView(title: "Candidates", value: summary.candidateCount)
+                }
+
+                if let tags = summary.tags, !tags.isEmpty {
+                    Text("Tags: \(tags.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let message = appState.encouragementStatusMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let message = appState.encouragementStatusMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Tap Scan Now to refresh today’s encouragement.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
+    }
+
+    private func metricView(title: String, value: Int?) -> some View {
+        VStack(spacing: 4) {
+            Text("\(value ?? 0)")
+                .font(.headline)
+            Text(title.uppercased())
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var backgroundGradient: some View {

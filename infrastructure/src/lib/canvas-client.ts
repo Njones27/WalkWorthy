@@ -10,6 +10,7 @@ interface CanvasTokenSecret {
   accessToken: string;
   obtainedAt: string;
   expiresInSeconds: number;
+  tokenType?: 'oauth' | 'personal';
 }
 
 export interface CanvasPlannerItem {
@@ -59,7 +60,15 @@ export async function fetchPlannerItems(options: FetchPlannerOptions): Promise<C
     });
 
     if (res.status === 401) {
-      // Access token expired unexpectedly; force refresh and retry once.
+      // If this user is using a long‑lived personal integration token,
+      // there is no refresh flow — skip token refresh and let the caller fallback.
+      const current = await getSecretJson<CanvasTokenSecret>(options.refreshSecretArn).catch(() => undefined);
+      const isPersonal = (current as CanvasTokenSecret | undefined)?.tokenType === 'personal'
+        || ((current as CanvasTokenSecret | undefined)?.accessToken === (current as CanvasTokenSecret | undefined)?.refreshToken);
+      if (isPersonal) {
+        throw new Error('Canvas personal token unauthorized');
+      }
+
       const refreshed = await refreshAccessToken(options);
       if (!refreshed) {
         throw new Error('Unable to refresh Canvas access token');
@@ -106,6 +115,11 @@ async function ensureAccessToken(options: FetchPlannerOptions): Promise<CanvasCo
   const now = new Date();
   const obtainedAt = new Date(token.obtainedAt);
   const expiresAt = new Date(obtainedAt.getTime() + token.expiresInSeconds * 1000);
+
+  // If this is a personal integration token, treat it as long‑lived and skip refresh
+  if (token.tokenType === 'personal' || token.accessToken === token.refreshToken) {
+    return { accessToken: token.accessToken, baseUrl: options.baseUrl };
+  }
 
   if (expiresAt.getTime() - 60_000 > now.getTime()) {
     return { accessToken: token.accessToken, baseUrl: options.baseUrl };

@@ -7,5 +7,14 @@
     "encouragement": "Hope overflows when you stay rooted in Him. You are not running on empty.",
     "translation": "ESV",
     "expiresAt": "2025-10-06T08:00:00Z"
+  },
+  "metadata": {
+    "encouragementId": "verse-004",
+    "status": "SUCCESS",
+    "plannerCount": 5,
+    "stressfulCount": 2,
+    "candidateCount": 3,
+    "tags": ["assignments", "exams"],
+    "errorMessage": null
   }
 }

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import AuthenticationServices
 
 @MainActor
 final class AppState: ObservableObject {
@@ -21,21 +22,52 @@ final class AppState: ObservableObject {
     @Published var useProfilePersonalization: Bool
     @Published var useFakeCanvas: Bool
     @Published var canvasSummary: TodayCanvas?
+    @Published var isAuthenticated: Bool {
+        didSet {
+            if !isAuthenticated {
+                latestScanSummary = nil
+                encouragementStatusMessage = nil
+                latestScanError = nil
+                hasFreshEncouragement = true
+            }
+        }
+    }
+    @Published var isScanning: Bool
+    @Published var latestScanSummary: ScanLogSummary?
+    @Published var latestScanError: String?
+    @Published var encouragementStatusMessage: String?
+    @Published var hasFreshEncouragement: Bool
+    @Published var authenticationNotice: String?
 
     private let apiClient: any EncouragementAPI
     private let notificationScheduler: NotificationScheduler
     private let defaults: UserDefaults
+    private let config: Config
+    private let authSession: AuthSession?
+    private let liveAPIClient: LiveAPIClient?
+    private lazy var canvasLinkCoordinator: CanvasLinkCoordinator? = {
+        guard let authSession, let liveAPIClient else { return nil }
+        return CanvasLinkCoordinator(config: config, authSession: authSession, apiClient: liveAPIClient)
+    }()
+    private lazy var signInCoordinator: HostedUISignInCoordinator? = {
+        guard let authSession else { return nil }
+        return HostedUISignInCoordinator(config: config, authSession: authSession)
+    }()
 
     init(
+        config: Config = .shared,
         apiClient: any EncouragementAPI = MockAPIClient(),
+        authSession: AuthSession? = nil,
         notificationScheduler: NotificationScheduler = .shared,
         defaults: UserDefaults = .standard
     ) {
+        self.config = config
         self.apiClient = apiClient
+        self.authSession = authSession
+        self.liveAPIClient = apiClient as? LiveAPIClient
         self.notificationScheduler = notificationScheduler
         self.defaults = defaults
-
-        let config = Config.shared
+        self.isAuthenticated = config.apiMode != "live"
 
         let storedOnboardingCompleted = defaults.bool(forKey: StorageKey.onboardingCompleted)
         if storedOnboardingCompleted && !Self.hasStoredProfile(in: defaults) {
@@ -53,6 +85,20 @@ final class AppState: ObservableObject {
         verseDeck = MockData.verses
         history = (try? defaults.decode([Verse].self, forKey: StorageKey.history)) ?? []
         canvasSummary = try? defaults.decode(TodayCanvas.self, forKey: StorageKey.canvasSummary)
+        isScanning = false
+        latestScanSummary = nil
+        latestScanError = nil
+        encouragementStatusMessage = nil
+        hasFreshEncouragement = true
+
+        if config.apiMode == "live" && !onboardingCompleted {
+            isAuthenticated = false
+            Task {
+                if let authSession {
+                    try? await authSession.signOut()
+                }
+            }
+        }
 
         clampCurrentIndex()
     }
@@ -67,15 +113,18 @@ final class AppState: ObservableObject {
     }
 
     func updateProfile(age: Int?, major: String, gender: Gender, hobbies: Set<String>, optIn: Bool) {
+        let trimmedMajor = major.trimmingCharacters(in: .whitespacesAndNewlines)
         if let age {
             defaults.set(age, forKey: StorageKey.profileAge)
         } else {
             defaults.removeObject(forKey: StorageKey.profileAge)
         }
-        defaults.set(major, forKey: StorageKey.profileMajor)
+        defaults.set(trimmedMajor, forKey: StorageKey.profileMajor)
         defaults.set(gender.rawValue, forKey: StorageKey.profileGender)
         defaults.set(Array(hobbies), forKey: StorageKey.profileHobbies)
         defaults.set(optIn, forKey: StorageKey.profileOptIn)
+
+        syncProfile(age: age, major: trimmedMajor, gender: gender, hobbies: hobbies, optIn: optIn)
     }
 
     func loadProfile() -> OnboardingProfile {
@@ -96,20 +145,43 @@ final class AppState: ObservableObject {
         useFakeCanvas = isOn
         defaults.set(isOn, forKey: StorageKey.useFakeCanvas)
         if !isOn {
-            isCanvasLinked = false
-            defaults.set(false, forKey: StorageKey.canvasLinked)
+            markCanvasUnlinked()
         }
     }
 
     func setTranslation(_ translation: Translation) {
         selectedTranslation = translation
         defaults.set(translation.rawValue, forKey: StorageKey.translation)
+        syncStoredProfile()
     }
 
     func toggleCanvasLink() {
         guard useFakeCanvas else { return }
         isCanvasLinked.toggle()
         defaults.set(isCanvasLinked, forKey: StorageKey.canvasLinked)
+    }
+
+    func startCanvasLink(anchor: ASPresentationAnchor?) async throws {
+        guard isAuthenticated else {
+            throw CanvasLinkCoordinator.CanvasLinkError.backend("Please sign in before linking Canvas.")
+        }
+        guard let coordinator = canvasLinkCoordinator else {
+            throw CanvasLinkCoordinator.CanvasLinkError.misconfigured
+        }
+        let linked = try await coordinator.startLink(from: anchor)
+        if linked {
+            markCanvasLinked()
+        }
+    }
+
+    func markCanvasLinked() {
+        isCanvasLinked = true
+        defaults.set(true, forKey: StorageKey.canvasLinked)
+    }
+
+    func markCanvasUnlinked() {
+        isCanvasLinked = false
+        defaults.set(false, forKey: StorageKey.canvasLinked)
     }
 
     func goToNextVerse() {
@@ -137,25 +209,113 @@ final class AppState: ObservableObject {
         notificationScheduler.scheduleTestNotification()
     }
 
+    func evaluateAuthentication() async {
+        guard config.apiMode == "live" else {
+            isAuthenticated = true
+            return
+        }
+        guard let authSession else {
+            isAuthenticated = false
+            return
+        }
+
+        do {
+            _ = try await authSession.validBearerToken()
+            isAuthenticated = true
+            authenticationNotice = nil
+        } catch {
+            isAuthenticated = false
+            authenticationNotice = "Your session has expired. Please sign in again."
+        }
+    }
+
+    func startSignIn(anchor: ASPresentationAnchor?) async throws {
+        guard let coordinator = signInCoordinator else {
+            throw HostedUISignInCoordinator.SignInError.misconfigured
+        }
+        do {
+            try await coordinator.startSignIn(from: anchor)
+            isAuthenticated = true
+            authenticationNotice = nil
+        } catch {
+            isAuthenticated = false
+            if authenticationNotice == nil {
+                authenticationNotice = error.localizedDescription
+            }
+            throw error
+        }
+    }
+
+    func signOut() {
+        guard config.apiMode == "live" else {
+            isAuthenticated = false
+            return
+        }
+
+        Task {
+            if let authSession {
+                try? await authSession.signOut()
+            }
+
+            await MainActor.run { [self] in
+                isAuthenticated = false
+                authenticationNotice = "You have been signed out. Please sign in again."
+                latestScanSummary = nil
+                encouragementStatusMessage = nil
+                latestScanError = nil
+            }
+        }
+    }
+
+    var isLiveMode: Bool {
+        config.apiMode == "live"
+    }
+
+    var requiresAuthenticationGate: Bool {
+        isLiveMode && !isAuthenticated
+    }
+
     func refreshEncouragementDeck() {
+        guard config.apiMode != "live" || isAuthenticated else { return }
         Task {
             do {
                 let response = try await apiClient.fetchNext()
                 if response.shouldNotify {
                     notificationScheduler.scheduleEncouragementNotification(response.payload)
                 }
+
                 if let payload = response.payload {
                     let verse = Verse(payload: payload)
-                    await MainActor.run { [verse] in
+                    await MainActor.run { [self, verse, response] in
                         if !verseDeck.contains(where: { $0.id == verse.id }) {
                             verseDeck.insert(verse, at: 0)
                         } else if let index = verseDeck.firstIndex(where: { $0.id == verse.id }) {
                             verseDeck[index] = verse
                         }
                         clampCurrentIndex()
+                        hasFreshEncouragement = true
+                        encouragementStatusMessage = statusMessage(forMetadata: response.metadata) ?? encouragementStatusMessage
+                        if let metadata = response.metadata {
+                            latestScanSummary = metadata
+                        }
+                        latestScanError = nil
+                    }
+                } else {
+                    await MainActor.run { [self, response] in
+                        if let metadata = response.metadata {
+                            latestScanSummary = metadata
+                            encouragementStatusMessage = statusMessage(forMetadata: metadata)
+                        } else if response.shouldNotify == false {
+                            encouragementStatusMessage = "No new encouragement yet. We'll try again soon."
+                        }
+                        hasFreshEncouragement = response.shouldNotify
+                        latestScanError = nil
                     }
                 }
             } catch {
+                await MainActor.run { [self] in
+                    latestScanError = error.localizedDescription
+                }
                 print("[AppState] Failed to fetch next encouragement: \(error)")
             }
         }
@@ -176,9 +336,71 @@ final class AppState: ObservableObject {
         }
     }
 
+    func triggerScanNow() {
+        if config.apiMode != "live" {
+            refreshEncouragementDeck()
+            return
+        }
+        guard isAuthenticated else {
+            latestScanError = "Please sign in before running a scan."
+            return
+        }
+
+        isScanning = true
+        latestScanError = nil
+
+        Task {
+            do {
+                let response = try await apiClient.triggerScanNow()
+                await MainActor.run { [self, response] in
+                    isScanning = false
+                    latestScanSummary = response.log ?? latestScanSummary
+                    encouragementStatusMessage = message(for: response)
+                    latestScanError = nil
+                }
+                refreshEncouragementDeck()
+            } catch let apiError as APIError {
+                await MainActor.run { [self] in
+                    isScanning = false
+                    switch apiError {
+                    case .conflict(let message):
+                        latestScanError = message ?? "Link your Canvas account to enable scans."
+                    case .unauthorized, .notAuthenticated:
+                        latestScanError = nil
+                        isAuthenticated = false
+                        authenticationNotice = "Your session has expired. Please sign in again."
+                    default:
+                        latestScanError = apiError.errorDescription ?? "Scan failed."
+                    }
+                }
+            } catch {
+                await MainActor.run { [self] in
+                    isScanning = false
+                    latestScanError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     func clearHistory() {
         history.removeAll()
         defaults.removeObject(forKey: StorageKey.history)
+    }
+
+    private func syncProfile(age: Int?, major: String, gender: Gender, hobbies: Set<String>, optIn: Bool) {
+        guard config.apiMode == "live", isAuthenticated else { return }
+        let profile = OnboardingProfile(age: age, major: major, gender: gender, hobbies: hobbies, optIn: optIn)
+        Task {
+            await sendProfileUpdate(profile)
+        }
+    }
+
+    private func syncStoredProfile() {
+        guard config.apiMode == "live", isAuthenticated else { return }
+        let profile = loadProfile()
+        Task {
+            await sendProfileUpdate(profile)
+        }
     }
 
     private func historyUpsert(_ verse: Verse) {
@@ -195,6 +417,66 @@ final class AppState: ObservableObject {
             return
         }
         currentVerseIndex = currentVerseIndex.clamped(to: 0..<(verseDeck.count))
+    }
+
+    private func sendProfileUpdate(_ profile: OnboardingProfile) async {
+        guard config.apiMode == "live", isAuthenticated else { return }
+        let trimmedMajor = profile.major.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hobbies = profile.hobbies.sorted()
+        let payload = RemoteUserProfileRequest(
+            ageRange: ageRangeString(for: profile.age),
+            major: trimmedMajor.isEmpty ? nil : trimmedMajor,
+            gender: profile.gender.rawValue.lowercased(),
+            hobbies: hobbies.isEmpty ? nil : hobbies,
+            optInTailored: profile.optIn,
+            translationPreference: selectedTranslation.rawValue
+        )
+
+        do {
+            try await apiClient.updateUserProfile(payload)
+        } catch {
+            print("[AppState] Failed to sync profile: \(error)")
+        }
+    }
+
+    private func statusMessage(forMetadata metadata: ScanLogSummary?) -> String? {
+        guard let metadata else {
+            return "Fresh encouragement delivered."
+        }
+        switch metadata.status {
+        case .success:
+            return "Fresh encouragement delivered from today's scan."
+        case .fallback:
+            if let reason = metadata.errorMessage, !reason.isEmpty {
+                return "Fallback encouragement delivered: \(reason)"
+            }
+            return "Fallback encouragement delivered from your backup verses."
+        }
+    }
+
+    private func message(for response: ScanNowResponse) -> String {
+        switch response.status {
+        case .success:
+            return "Scan accepted. We'll deliver a new encouragement shortly."
+        case .fallback:
+            if let reason = response.log?.errorMessage, !reason.isEmpty {
+                return "Fallback encouragement queued: \(reason)"
+            }
+            return "Fallback encouragement queued. We'll keep looking for a fresh verse."
+        }
+    }
+
+    private func ageRangeString(for age: Int?) -> String? {
+        guard let age else { return nil }
+        switch age {
+        case ..<18: return "under-18"
+        case 18...22: return "18-22"
+        case 23...30: return "23-30"
+        case 31...40: return "31-40"
+        case 41...55: return "41-55"
+        case 56...65: return "56-65"
+        default: return "65+"
+        }
     }
 }
 
