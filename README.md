@@ -1,68 +1,38 @@
 # WalkWorthy
 
-WalkWorthy pairs daily Canvas stressors with timely Scripture encouragements.  
-The iOS app now supports both **mock** and **live** modes backed by the Stage 4 AWS stack.
+WalkWorthy pairs daily Canvas stressors with timely Scripture encouragements. The repository delivers both the iOS experience and the AWS CDK infrastructure the prompts describe.
 
-## App Features
-- SwiftUI experience with liquid-glass styling across home, history, and settings.
-- Cognito Hosted UI sign-in when running in live mode.
-- Canvas OAuth linking via `ASWebAuthenticationSession`.
-- Manual “Scan Now” trigger with live status metrics (success vs fallback, counts, tags).
-- Local history of recently viewed verses with latest scan summary.
-- Local notifications when new encouragements arrive.
+## Guided Build Context
+- The `prompts/` directory captures the staged build narrative: it defines the north-star architecture (Canvas + AgentKit + notifications), outlines iterative delivery goals, and sets expectations for code quality and guardrails.
+- Every major subsystem—mobile, infrastructure, AgentKit bridge, notifications, Canvas integration—maps back to its prompt to keep requirements discoverable alongside the source.
 
-## Environment Modes
-The app reads `Config.plist` alongside `Info.plist`. Override keys to toggle behaviour:
+## Architecture Flow
+- **iOS app** (SwiftUI) gathers profile inputs, authenticates with Amazon Cognito, links Canvas via OAuth, and requests encouragements on demand or through background reminders.
+- **API Gateway HTTP API** fronts Lambda handlers that coordinate Canvas tokens, run daily scans, and surface encouragement content to the app.
+- **Canvas integration** stores refresh tokens in Secrets Manager and scans upcoming assignments/events using `scan-user`.
+- **Bible MCP + AgentKit**: verse candidates flow through a lightweight bridge Lambda (`bible-mcp-bridge`) so `scan-user` and the weekday scheduler can invoke AgentKit models with contextual prompts.
+- **DynamoDB single-table** design tracks user profiles, Canvas linkage, scan history, and pending encouragement payloads that the app fetches via `/encouragement/next`.
+- **EventBridge Scheduler → Lambda** drives the weekday 9am scan (`weekday-scan`) which reuses the same path as on-demand scans, persists new encouragements, and queues notification work.
+- **Notification lane** lets the backend mark encouragements ready and allows the app to POST device tokens so future push or local-notification plumbing can fan out.
 
-| Key | Description |
-| --- | --- |
-| `API_MODE` | `mock` (default) keeps locally bundled responses. Set to `live` to use the deployed API. |
-| `API_BASE_URL` | HTTPS base for the API Gateway (e.g. `https://abc123.execute-api.us-east-1.amazonaws.com`). |
-| `COGNITO_DOMAIN` | Cognito Hosted UI domain (include scheme or leave bare host). |
-| `COGNITO_CLIENT_ID` | Cognito app client id configured for the Hosted UI. |
-| `COGNITO_REDIRECT_URI` | Custom scheme redirect, defaults to `walkworthy://auth/callback`. Add this URI to the Cognito app client. |
-| `CANVAS_BASE_URL` | Canvas instance base URL (e.g. `https://myschool.instructure.com`). |
-| `CANVAS_CLIENT_ID` | Canvas OAuth client id registered for WalkWorthy. |
-| `CANVAS_REDIRECT_URI` | Canvas OAuth redirect, defaults to `walkworthy://oauth/canvas`. Register this with Canvas. |
-| `USE_FAKE_CANVAS` | `true` to keep the mock toggle available. Set `false` in live builds. |
-| `DEFAULT_TRANSLATION` | Default translation code (`ESV`, `NIV`, etc.). |
-| `NOTIFICATION_MODE` | Currently informational; local notifications are always used. |
+The net effect is a pipeline where data flows from Canvas → DynamoDB → AgentKit → app, with Cognito-protected endpoints enforcing trust boundaries.
 
-> `Config.plist` entries override `Info.plist` values, so you can ship multiple build variants by swapping that file.
+## Current Implementation Highlights
+- **Mobile app (SwiftUI)**: onboarding, home scan dashboard, history, and settings views styled with the “liquid glass” treatment. Supports Cognito Hosted UI sign-in, Canvas OAuth linking, manual scans, local verse history, and notification prompts. Mock data remains available for design iteration.
+- **Networking layer**: typed async clients hit `/scan/now`, `/encouragement/next`, `/user/profile`, `/auth/canvas/callback`, `/device/register`, and `/encouragement/notify`, automatically attaching Cognito tokens when available.
+- **Infrastructure (AWS CDK TypeScript)**: deploys the HTTP API, Lambda handlers (`canvas-callback`, `scan-user`, `weekday-scan`, `encouragement-next`, `notify-user`, `register-device`, `user-profile`, `bible-mcp-bridge`), DynamoDB table binding, Secrets Manager references, EventBridge Scheduler with DLQ, and IAM policies for Canvas token management plus AgentKit access.
+- **Data & workflow**: scans compute stress heuristics, fetch verse candidates via the Bible MCP bridge, ask AgentKit to craft the final encouragement, write the result to DynamoDB, and surface it to the client until acknowledged.
 
-## Live Mode Checklist
-1. **Cognito Hosted UI**
-   - Create an app client with redirect URI `walkworthy://auth/callback`.
-   - Allow the `openid profile email` scopes.
-   - Populate `COGNITO_DOMAIN` and `COGNITO_CLIENT_ID` in `Config.plist`.
-2. **API Gateway**
-   - Deploy Stage 3/4 infrastructure and copy the base URL into `API_BASE_URL`.
-3. **Canvas OAuth**
-   - Register `walkworthy://oauth/canvas` with your Canvas developer keys.
-   - Supply `CANVAS_BASE_URL` and `CANVAS_CLIENT_ID`.
-4. **Build**
-   - Set `API_MODE` to `live` and flip `USE_FAKE_CANVAS` to `false`.
-   - Launch the app; you’ll be prompted to sign in, then you can link Canvas.
+## Repository Tour
+- `WalkWorthy/`: Xcode project and SwiftUI sources for the iOS client (e.g. `UI/Onboarding/TitleScreenView.swift`, auth/session management, mock payloads).
+- `infrastructure/`: AWS CDK app (`infrastructure-stack.ts`) with Lambda handlers under `src/handlers/`.
+- `prompts/`: reference prompts that document goals, integration points, security requirements, and CI/CD expectations.
 
-## Usage Tips
-- Tap **Sign in with WalkWorthy** when the authentication gate appears. The session is cached in the keychain and refreshed automatically.
-- Use the **Scan Now** button on the Home tab to run an on-demand scan. Status metrics summarise planner items, stressful tasks, and verse candidate counts. Conflicts (Canvas not linked) and auth errors surface inline.
-- The **History** tab stores verses locally and shows the latest scan summary for quick diagnostics.
-- Settings still include profile personalisation toggles; in live mode profile updates sync to `/user/profile`.
+## Working With The App
+- Open `WalkWorthy/WalkWorthy.xcodeproj`, select the `WalkWorthy` target, and run on a simulator or device.
+- Toggle between mock responses and live API usage by swapping the bundled configuration plist; no source changes are required.
+- Sign in through the built-in Cognito Hosted UI, link Canvas via the provided OAuth flow, and use “Scan Now” to exercise the full backend loop.
 
-## Mock Mode
-Leave `API_MODE` as `mock` for design iteration. Mock JSON lives under `WalkWorthy/Mock/`.
-The Canvas tile falls back to the original toggle with sample summary data.
-
-## Building & Running
-1. Open `WalkWorthy/WalkWorthy.xcodeproj`.
-2. Select the `WalkWorthy` target and desired simulator/device.
-3. Update `Config.plist` as needed for mock or live runs.
-4. Build & run (`⌘R`).
-
-## Stage 4 Highlights
-- Live Cognito authentication flow with sign-in gating.
-- Canvas OAuth implementation using backend `/auth/canvas/callback`.
-- Live networking layer (`LiveAPIClient`) covering `/encouragement/next`, `/scan/now`, `/user/profile`, `/auth/canvas/callback`.
-- UI polish: scan status cards, manual scan action, fallback messaging, refined history view.
-- Documentation for configuring the bundle per environment.
+## Deployment Notes
+- Provision the backend by bootstrapping CDK and deploying the stack in `infrastructure/`.
+- After deployment, plug the resulting API URL, Cognito settings, and Canvas domain into the app’s configuration bundle to run in live mode.
